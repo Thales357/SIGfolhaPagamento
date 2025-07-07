@@ -4,62 +4,7 @@ ini_set('display_startup_errors',1);
 error_reporting(E_ALL);
 
 session_start();
-// somente carrega a conexão se for necessário buscar dados do banco
-$db = null;
 
-$data = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['colaborador'])) {
-    $data = [
-        'nome'             => $_POST['colaborador'],
-        'salario_base'     => floatval($_POST['salario_base'] ?? 0),
-        'horas_trabalhadas'=> floatval($_POST['horas_trabalhadas'] ?? 0),
-        'horas_extras'     => floatval($_POST['horas_extras'] ?? 0),
-        'valor_extras'     => floatval($_POST['valor_extras'] ?? 0),
-        'desconto_inss'    => floatval($_POST['inss'] ?? 0),
-        'desconto_irrf'    => floatval($_POST['irrf'] ?? 0),
-        'outros_descontos' => floatval($_POST['outros_descontos'] ?? 0),
-        'salario_liquido'  => floatval($_POST['salario_liquido'] ?? 0),
-        'mes'              => intval($_POST['mes'] ?? 0),
-        'ano'              => intval($_POST['ano'] ?? 0)
-    ];
-} else {
-    $id = intval($_GET['id'] ?? ($_POST['id'] ?? 0));
-    if ($id <= 0) {
-        http_response_code(400);
-        echo 'ID inválido';
-        exit;
-    }
-
-    // apenas tenta conectar se o arquivo de conexão existir
-    if (!file_exists('conexao.php')) {
-        http_response_code(500);
-        echo 'Arquivo de conexão ausente';
-        exit;
-    }
-    require 'conexao.php';
-
-    if (isset($mysqli) && $mysqli instanceof mysqli) {
-        $db = $mysqli;
-    } elseif (isset($conexao) && $conexao instanceof mysqli) {
-        $db = $conexao;
-    } elseif (isset($conn) && $conn instanceof mysqli) {
-        $db = $conn;
-    } else {
-        http_response_code(500);
-        die('Erro interno: conexão inválida.');
-    }
-
-    $stmt = $db->prepare("SELECT f.*, c.nome
-                          FROM folha_pagamento f
-                          JOIN colaboradores c ON c.id=f.colaborador_id
-                          WHERE f.id=?");
-    $stmt->bind_param('i', $id);
-    $stmt->execute();
-    $data = $stmt->get_result()->fetch_assoc();
-    if(!$data){
-        echo 'Registro não encontrado';
-        exit;
-    }
 }
 $mesAno = str_pad($data['mes'],2,'0',STR_PAD_LEFT).'/'.$data['ano'];
 ?>
