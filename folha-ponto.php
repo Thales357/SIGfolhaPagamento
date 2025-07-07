@@ -384,11 +384,9 @@ if (isset($_GET['export'])) {
                     $totStr = $fmt($col['totalSec']);
                     $extra = max(0, $col['sumSaldo']);
                     $falt = max(0, -$col['sumSaldo']);
-                    $bank = $col['totalSec'] - intval($col['horas_mes']) * 3600;
                     echo 'Contrato: ' . sprintf('%02d:00', $col['horas_mes']) . "h/mês — Trabalhadas: $totStr";
                     echo " — Extras: " . ($extra ? '+' : '') . $fmt($extra);
                     echo " — Faltas: " . ($falt ? '-' : '') . $fmt($falt);
-                    echo " — Banco: " . ($bank >= 0 ? '+' : '') . $fmt(abs($bank));
                     ?>
                 </div>
             </div>
