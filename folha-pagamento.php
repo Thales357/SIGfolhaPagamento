@@ -276,16 +276,6 @@ while ($r = $res->fetch_assoc())
     <div class="card">
         <?php if (empty($lista)): ?>Nenhuma folha para este período.<?php else: ?>
             
-<form method="post" action="gerar_pdf.php" target="_blank" style="margin-bottom: 20px;">
-    <input type="hidden" name="colaborador" value="<?= $nome_colaborador ?>">
-    <input type="hidden" name="salario_base" value="<?= $salario_base ?>">
-    <input type="hidden" name="horas_extras" value="<?= $horas_extras ?>">
-    <input type="hidden" name="inss" value="<?= $inss ?>">
-    <input type="hidden" name="irrf" value="<?= $irrf ?>">
-    <input type="hidden" name="outros_descontos" value="<?= $outros_descontos ?>">
-    <input type="hidden" name="salario_liquido" value="<?= $salario_liquido ?>">
-    <button type="submit">📄 Gerar Folha de Pagamento em PDF</button>
-</form>
 
 <table>
                 <thead>
@@ -317,19 +307,30 @@ while ($r = $res->fetch_assoc())
                         <tr>
                             <td><?= $f['id'] ?></td>
                             <td><?= htmlspecialchars($f['nome']) ?></td>
-                            <td><?= number_format($f['salario_base'], 2, ',', '.') ?></td>
-                            <td><?= number_format($f['horas_trabalhadas'], 2, ',', '.') ?></td>
-                            <td><?= number_format($notWorked, 2, ',', '.') ?></td>
-                            <td><?= number_format($valorNot, 2, ',', '.') ?></td>
-                            <td><?= number_format($f['horas_extras'], 2, ',', '.') ?></td>
-                            <td><?= number_format($f['valor_extras'], 2, ',', '.') ?></td>
-                            <td><input type="text" name="outros_descontos[<?= $f['id'] ?>]"
-                                    value="<?= number_format($outrosDesc, 2, ',', '.') ?>" style="width:6ch;"></td>
-                            <td><?= number_format($descContrato, 2, ',', '.') ?></td>
-                            <td><?= number_format($f['desconto_inss'], 2, ',', '.') ?></td>
-                            <td><?= number_format($f['desconto_irrf'], 2, ',', '.') ?></td>
-                            <td><?= number_format($f['salario_liquido'], 2, ',', '.') ?></td>
+                            <td><input type="text" name="salario_base[<?= $f['id'] ?>]" value="<?= number_format($f['salario_base'], 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="horas_trabalhadas[<?= $f['id'] ?>]" value="<?= number_format($f['horas_trabalhadas'], 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="horas_nao_trabalhadas[<?= $f['id'] ?>]" value="<?= number_format($notWorked, 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="valor_horas_nao_trabalhadas[<?= $f['id'] ?>]" value="<?= number_format($valorNot, 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="horas_extras[<?= $f['id'] ?>]" value="<?= number_format($f['horas_extras'], 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="valor_extras[<?= $f['id'] ?>]" value="<?= number_format($f['valor_extras'], 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="outros_descontos[<?= $f['id'] ?>]" value="<?= number_format($outrosDesc, 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="desc_contrato[<?= $f['id'] ?>]" value="<?= number_format($descContrato, 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="desconto_inss[<?= $f['id'] ?>]" value="<?= number_format($f['desconto_inss'], 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="desconto_irrf[<?= $f['id'] ?>]" value="<?= number_format($f['desconto_irrf'], 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><input type="text" name="salario_liquido[<?= $f['id'] ?>]" value="<?= number_format($f['salario_liquido'], 2, ',', '.') ?>" style="width:6ch;"></td>
                             <td><?= $f['status'] ?></td>
+                            <td>
+                                <form method="post" action="gerar_pdf.php" target="_blank" style="display:inline;">
+                                    <input type="hidden" name="colaborador" value="<?= htmlspecialchars($f['nome'], ENT_QUOTES) ?>">
+                                    <input type="hidden" name="salario_base" value="<?= $f['salario_base'] ?>">
+                                    <input type="hidden" name="horas_extras" value="<?= $f['horas_extras'] ?>">
+                                    <input type="hidden" name="inss" value="<?= $f['desconto_inss'] ?>">
+                                    <input type="hidden" name="irrf" value="<?= $f['desconto_irrf'] ?>">
+                                    <input type="hidden" name="outros_descontos" value="<?= $outrosDesc ?>">
+                                    <input type="hidden" name="salario_liquido" value="<?= $f['salario_liquido'] ?>">
+                                    <button type="submit" style="padding:0 4px;">📄</button>
+                                </form>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
