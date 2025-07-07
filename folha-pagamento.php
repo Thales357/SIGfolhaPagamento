@@ -289,8 +289,7 @@ while ($r = $res->fetch_assoc())
     <div class="card">
         <?php if (empty($lista)): ?>Nenhuma folha para este período.<?php else: ?>
             
-<form method="post" action="folha-pagamento.php?month=<?= $month ?>&year=<?= $year ?>&colaborador_id=<?= $colabFilter ?>">
-    <input type="hidden" name="action" value="save">
+
 
 <table>
                 <thead>
@@ -336,8 +335,7 @@ while ($r = $res->fetch_assoc())
                             <td><?= $f['status'] ?></td>
                             <td>
                                 <form method="post" action="gerar_pdf.php" target="_blank" style="display:inline;">
-                                    <input type="hidden" name="mes" value="<?= $month ?>">
-                                    <input type="hidden" name="ano" value="<?= $year ?>">
+
                                     <input type="hidden" name="colaborador" value="<?= htmlspecialchars($f['nome'], ENT_QUOTES) ?>">
                                     <input type="hidden" name="salario_base" value="<?= $f['salario_base'] ?>">
                                     <input type="hidden" name="horas_extras" value="<?= $f['horas_extras'] ?>">
