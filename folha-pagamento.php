@@ -39,6 +39,7 @@ function count_business_days($year, $month) {
 function calc_inss($valor) { return round($valor * 0.08, 2); }
 function calc_irrf($base)  { return round(($base) * 0.075, 2); }
 
+
 // filtros vindo de GET
 $month       = intval($_GET['month'] ?? date('m'));
 $year        = intval($_GET['year']  ?? date('Y'));
@@ -140,6 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $_SESSION['flash'] = 'Folhas geradas com sucesso!';
     }
+    /* ação de impressão movida para relatorio-folha.php */
     header("Location: folha-pagamento.php?month={$month}&year={$year}&colaborador_id={$colabFilter}");
     exit;
 }
@@ -267,19 +269,16 @@ while ($r = $res->fetch_assoc()) {
           </tr>
         </thead>
         <tbody>
-          <?php foreach($lista as $f):
-            $notWorked = max(0, $f['horas_mes'] - $f['horas_trabalhadas']);
-            $valorNot  = round($notWorked * ($f['salario_base']/$f['horas_mes']),2);
-          ?>
+          <?php foreach($lista as $f): ?>
             <tr>
               <td><?=$f['id']?></td>
               <td><?=htmlspecialchars($f['nome'])?></td>
               <td><input type="text" name="salario_base[<?=$f['id']?>]"      value="<?=number_format($f['salario_base'],2,',','.')?>"></td>
               <td><input type="text" name="horas_trabalhadas[<?=$f['id']?>]" value="<?=number_format($f['horas_trabalhadas'],2,',','.')?>"></td>
-              <td><?=number_format($notWorked,2,',','.')?></td>
-              <td><?=number_format($valorNot,2,',','.')?></td>
               <td><input type="text" name="horas_extras[<?=$f['id']?>]"      value="<?=number_format($f['horas_extras'],2,',','.')?>"></td>
               <td><input type="text" name="valor_extras[<?=$f['id']?>]"      value="<?=number_format($f['valor_extras'],2,',','.')?>"></td>
+              <td><input type="text" name="desconto_inss[<?=$f['id']?>]"    value="<?=number_format($f['desconto_inss'],2,',','.')?>"></td>
+              <td><input type="text" name="desconto_irrf[<?=$f['id']?>]"   value="<?=number_format($f['desconto_irrf'],2,',','.')?>"></td>
               <td><input type="text" name="outros_descontos[<?=$f['id']?>]"  value="<?=number_format($f['outros_descontos']??0,2,',','.')?>"></td>
               <td><input type="text" name="salario_liquido[<?=$f['id']?>]"   value="<?=number_format($f['salario_liquido'],2,',','.')?>"></td>
               <td><button type="button" class="print-btn" onclick="updateAndPrint(<?=$f['id']?>)">📄</button></td>
@@ -291,11 +290,12 @@ while ($r = $res->fetch_assoc()) {
     </form>
 
     <?php foreach($lista as $f): ?>
-      <form id="print<?=$f['id']?>" class="print-form" method="post" action="folha-pagamento.php" target="_blank">
-        <input type="hidden" name="action"             value="print">
+      <form id="print<?=$f['id']?>" class="print-form" method="post" action="relatorio-folha.php" target="_blank">
         <input type="hidden" name="colaborador"        value="<?=htmlspecialchars($f['nome'],ENT_QUOTES)?>">
         <input type="hidden" name="salario_base"       value="<?=$f['salario_base']?>">
+        <input type="hidden" name="horas_trabalhadas"  value="<?=$f['horas_trabalhadas']?>">
         <input type="hidden" name="horas_extras"       value="<?=$f['horas_extras']?>">
+        <input type="hidden" name="valor_extras"       value="<?=$f['valor_extras']?>">
         <input type="hidden" name="inss"               value="<?=$f['desconto_inss']?>">
         <input type="hidden" name="irrf"               value="<?=$f['desconto_irrf']?>">
         <input type="hidden" name="outros_descontos"   value="<?=$f['outros_descontos']??0?>">
@@ -316,12 +316,14 @@ function applyFilter() {
 }
 function updateAndPrint(id) {
   const form = document.getElementById('print' + id);
-  form.querySelector('[name="salario_base"]').value     = document.querySelector(`[name="salario_base[${id}]"]`).value;
-  form.querySelector('[name="horas_extras"]').value     = document.querySelector(`[name="horas_extras[${id}]"]`).value;
-  form.querySelector('[name="inss"]').value             = document.querySelector(`[name="desconto_inss[${id}]"]`).value;
-  form.querySelector('[name="irrf"]').value             = document.querySelector(`[name="desconto_irrf[${id}]"]`).value;
-  form.querySelector('[name="outros_descontos"]').value = document.querySelector(`[name="outros_descontos[${id}]"]`).value;
-  form.querySelector('[name="salario_liquido"]').value  = document.querySelector(`[name="salario_liquido[${id}]"]`).value;
+  form.querySelector('[name="salario_base"]').value       = document.querySelector(`[name="salario_base[${id}]"]`).value;
+  form.querySelector('[name="horas_trabalhadas"]').value  = document.querySelector(`[name="horas_trabalhadas[${id}]"]`).value;
+  form.querySelector('[name="horas_extras"]').value       = document.querySelector(`[name="horas_extras[${id}]"]`).value;
+  form.querySelector('[name="valor_extras"]').value       = document.querySelector(`[name="valor_extras[${id}]"]`).value;
+  form.querySelector('[name="inss"]').value               = document.querySelector(`[name="desconto_inss[${id}]"]`).value;
+  form.querySelector('[name="irrf"]').value               = document.querySelector(`[name="desconto_irrf[${id}]"]`).value;
+  form.querySelector('[name="outros_descontos"]').value   = document.querySelector(`[name="outros_descontos[${id}]"]`).value;
+  form.querySelector('[name="salario_liquido"]').value    = document.querySelector(`[name="salario_liquido[${id}]"]`).value;
   form.submit();
 }
 </script>
