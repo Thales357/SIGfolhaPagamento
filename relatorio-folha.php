@@ -5,8 +5,6 @@ error_reporting(E_ALL);
 
 session_start();
 
-}
-$mesAno = str_pad($data['mes'],2,'0',STR_PAD_LEFT).'/'.$data['ano'];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
