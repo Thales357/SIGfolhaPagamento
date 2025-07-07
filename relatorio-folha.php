@@ -4,66 +4,7 @@ ini_set('display_startup_errors',1);
 error_reporting(E_ALL);
 
 session_start();
-// somente carrega a conexão se for necessário buscar dados do banco
-$db = null;
 
-// valores padrão para evitar avisos quando dados não forem enviados
-$data = [
-    'nome'             => '',
-    'salario_base'     => 0,
-    'horas_trabalhadas'=> 0,
-    'horas_extras'     => 0,
-    'valor_extras'     => 0,
-    'desconto_inss'    => 0,
-    'desconto_irrf'    => 0,
-    'outros_descontos' => 0,
-    'salario_liquido'  => 0,
-    'mes'              => 0,
-    'ano'              => 0
-];
-// id da folha para buscar dados
-$id = intval($_GET['id'] ?? ($_POST['id'] ?? 0));
-if ($id <= 0) {
-    http_response_code(400);
-    echo 'ID inválido';
-    exit;
-}
-
-// carrega conexão
-if (!file_exists('conexao.php')) {
-    http_response_code(500);
-    echo 'Arquivo de conexão ausente';
-    exit;
-}
-require 'conexao.php';
-
-if (isset($mysqli) && $mysqli instanceof mysqli) {
-    $db = $mysqli;
-} elseif (isset($conexao) && $conexao instanceof mysqli) {
-    $db = $conexao;
-} elseif (isset($conn) && $conn instanceof mysqli) {
-    $db = $conn;
-} else {
-    http_response_code(500);
-    die('Erro interno: conexão inválida.');
-}
-
-// busca valores da folha de pagamento
-$stmt = $db->prepare("SELECT f.*, c.nome
-                      FROM folha_pagamento f
-                      JOIN colaboradores c ON c.id=f.colaborador_id
-                      WHERE f.id=?");
-$stmt->bind_param('i', $id);
-$stmt->execute();
-$data = $stmt->get_result()->fetch_assoc();
-if(!$data){
-    echo 'Registro não encontrado';
-    exit;
-}
-
-$mes  = isset($data['mes']) ? str_pad((string)$data['mes'],2,'0',STR_PAD_LEFT) : '';
-$ano  = $data['ano'] ?? '';
-$mesAno = $mes . '/' . $ano;
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">

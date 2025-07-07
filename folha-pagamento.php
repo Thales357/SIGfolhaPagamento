@@ -365,8 +365,7 @@ while ($r = $res->fetch_assoc()) {
     </form>
 
     <?php foreach($lista as $f): ?>
-      <form id="print<?=$f['id']?>" class="print-form" method="get" action="relatorio-folha.php" target="_blank">
-        <input type="hidden" name="id" value="<?=$f['id']?>">
+
       </form>
     <?php endforeach;?>
   <?php endif;?>
