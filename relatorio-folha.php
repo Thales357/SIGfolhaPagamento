@@ -4,19 +4,6 @@ ini_set('display_startup_errors',1);
 error_reporting(E_ALL);
 
 session_start();
-require 'conexao.php';
-
-if (isset($mysqli) && $mysqli instanceof mysqli) {
-    $db = $mysqli;
-} elseif (isset($conexao) && $conexao instanceof mysqli) {
-    $db = $conexao;
-} elseif (isset($conn) && $conn instanceof mysqli) {
-    $db = $conn;
-} else {
-    http_response_code(500);
-    die('Erro interno: conexão inválida.');
-}
-
 
 }
 $mesAno = str_pad($data['mes'],2,'0',STR_PAD_LEFT).'/'.$data['ano'];
