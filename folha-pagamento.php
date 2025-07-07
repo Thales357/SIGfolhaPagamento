@@ -400,7 +400,6 @@ while ($r = $res->fetch_assoc())
             
 
 
-<form id="saveForm" method="post" action="folha-pagamento.php">
     <input type="hidden" name="action" value="save">
     <table>
                 <thead>
@@ -445,7 +444,7 @@ while ($r = $res->fetch_assoc())
                             <td><input type="text" name="salario_liquido[<?= $f['id'] ?>]" value="<?= number_format($f['salario_liquido'], 2, ',', '.') ?>" style="width:6ch;"></td>
                             <td><?= $f['status'] ?></td>
                             <td>
-                                <button type="submit" form="print<?= $f['id'] ?>" style="padding:0 4px;">📄</button>
+
                             </td>
                         </tr>
                     <?php endforeach; ?>
