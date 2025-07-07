@@ -1,0 +1,345 @@
+<?php
+// folha-pagamento.php
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+date_default_timezone_set('America/Sao_Paulo');
+
+session_start();
+require 'conexao.php';
+
+// Conexão
+if (isset($mysqli) && $mysqli instanceof mysqli) {
+    $db = $mysqli;
+} elseif (isset($conexao) && $conexao instanceof mysqli) {
+    $db = $conexao;
+} elseif (isset($conn) && $conn instanceof mysqli) {
+    $db = $conn;
+} else {
+    http_response_code(500);
+    die('Erro interno: conexão inválida.');
+}
+
+// Conta dias úteis no mês
+function count_business_days(int $year, int $month): int
+{
+    $start = new DateTime("{$year}-{$month}-01");
+    $end = (clone $start)->modify('last day of this month');
+    $count = 0;
+    while ($start <= $end) {
+        if ((int) $start->format('N') < 6) {
+            $count++;
+        }
+        $start->modify('+1 day');
+    }
+    return $count;
+}
+
+// Descontos simplificados
+function calc_inss(float $valor): float
+{
+    return round($valor * 0.08, 2);
+}
+function calc_irrf(float $base): float
+{
+    return round($base * 0.075, 2);
+}
+
+// Recebe filtros
+$month = intval($_GET['month'] ?? date('m'));
+$year = intval($_GET['year'] ?? date('Y'));
+$colabFilter = intval($_GET['colaborador_id'] ?? 0);
+
+// Busca colaboradores ativos para filtro
+$allCols = [];
+$resAll = $db->query("SELECT id, nome FROM colaboradores WHERE status='Ativo' ORDER BY nome");
+while ($r = $resAll->fetch_assoc()) {
+    $allCols[] = ['id' => $r['id'], 'label' => $r['nome']];
+}
+
+// Seleção de colaboradores para geração
+$cols = [];
+if ($colabFilter > 0) {
+    $stmt = $db->prepare("SELECT id, nome, horas_mes, salario FROM colaboradores WHERE id=? AND status='Ativo'");
+    $stmt->bind_param('i', $colabFilter);
+    $stmt->execute();
+    $cols = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+} else {
+    $res = $db->query("SELECT id, nome, horas_mes, salario FROM colaboradores WHERE status='Ativo' ORDER BY nome");
+    while ($r = $res->fetch_assoc()) {
+        $cols[] = $r;
+    }
+}
+
+// Ações POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    if ($action === 'generate') {
+        // mesmo código de geração
+        $diasUteis = count_business_days($year, $month);
+        foreach ($cols as $col) {
+            $stmt = $db->prepare(
+                "SELECT IFNULL(SUM(TIME_TO_SEC(horario_saida)-TIME_TO_SEC(horario_entrada)),0) AS secs
+                 FROM registro_ponto
+                 WHERE colaborador_id=? AND YEAR(data_registro)=? AND MONTH(data_registro)=?"
+            );
+            $stmt->bind_param('iii', $col['id'], $year, $month);
+            $stmt->execute();
+            $tot = (int) $stmt->get_result()->fetch_assoc()['secs'];
+            $horasTrab = $tot / 3600;
+            $salBase = (float) $col['salario'];
+            $horasContrato = (float) $col['horas_mes'];
+            $valorHora = $horasContrato > 0 ? $salBase / $horasContrato : 0;
+            $pagNormais = round(min($horasTrab, $horasContrato) * $valorHora, 2);
+            $horasExt = max(0, $horasTrab - $horasContrato);
+            $pagExtras = round($horasExt * $valorHora * 1.5, 2);
+            $bruto = $pagNormais + $pagExtras;
+            $desINSS = calc_inss($bruto);
+            $desIRRF = calc_irrf($bruto - $desINSS);
+            $outros = 0.00;
+            $liq = round($bruto - ($desINSS + $desIRRF + $outros), 2);
+            $db->query(
+                "INSERT INTO folha_pagamento
+                 (colaborador_id,mes,ano,salario_base,horas_trabalhadas,valor_hora,horas_extras,valor_extras,desconto_inss,desconto_irrf,outros_descontos,salario_liquido)
+                 VALUES
+                 ({$col['id']},{$month},{$year},{$salBase},{$horasTrab},{$valorHora},{$horasExt},{$pagExtras},{$desINSS},{$desIRRF},{$outros},{$liq})
+                 ON DUPLICATE KEY UPDATE
+                   salario_base={$salBase},horas_trabalhadas={$horasTrab},valor_hora={$valorHora},horas_extras={$horasExt},valor_extras={$pagExtras},desconto_inss={$desINSS},desconto_irrf={$desIRRF},outros_descontos={$outros},salario_liquido={$liq}"
+            );
+        }
+        $_SESSION['flash'] = 'Folha gerada com sucesso!';
+    } elseif ($action === 'clear') {
+        $cond = "mes={$month} AND ano={$year}";
+        if ($colabFilter > 0)
+            $cond .= " AND colaborador_id={$colabFilter}";
+        $db->query("DELETE FROM folha_pagamento WHERE {$cond}");
+        $_SESSION['flash'] = 'Folha limpa!';
+    }
+    header("Location: folha-pagamento.php?month={$month}&year={$year}&colaborador_id={$colabFilter}");
+    exit;
+}
+
+// Listagem
+$lista = [];
+$sql = "SELECT f.*,c.nome,c.horas_mes FROM folha_pagamento f
+      JOIN colaboradores c ON c.id=f.colaborador_id
+      WHERE f.mes={$month} AND f.ano={$year}";
+if ($colabFilter > 0)
+    $sql .= " AND f.colaborador_id={$colabFilter}";
+$sql .= " ORDER BY c.nome";
+$res = $db->query($sql);
+while ($r = $res->fetch_assoc())
+    $lista[] = $r;
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Folha de Pagamento | SIG</title>
+    <style>
+        :root {
+            --bg: #f9f9f9;
+            --fg: #333;
+            --accent: #d4af37;
+            --card: #fff;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --muted: #777;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            padding: 1rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .controls select,
+        .controls input {
+            padding: .5rem;
+            border: 1px solid var(--muted);
+            border-radius: 4px;
+            font-size: .9rem;
+        }
+
+        .controls button {
+            padding: .5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .back {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        .filter {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .generate {
+            background: #27ae60;
+            color: #fff;
+        }
+
+        .clear {
+            background: #e67e22;
+            color: #fff;
+        }
+
+        .flash {
+            background: #44bd32;
+            color: #fff;
+            padding: .75rem;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 1rem;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px var(--shadow);
+            margin-bottom: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: .5rem;
+        }
+
+        thead th {
+            background: var(--accent);
+            color: #fff;
+            padding: .6rem;
+            border: 1px solid #eee;
+            text-align: center;
+        }
+
+        tbody td {
+            padding: .6rem;
+            border: 1px solid #eee;
+            text-align: center;
+            font-size: .85rem;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+    </style>
+</head>
+
+<body>
+    <?php if (!empty($_SESSION['flash'])): ?>
+        <div class="flash"><?= $_SESSION['flash'];
+        unset($_SESSION['flash']); ?></div><?php endif; ?>
+    <div class="controls">
+        <button class="back" onclick="location.href='dashboard.html'">← Voltar</button>
+        <select id="month" onchange="applyFilter()"><?php for ($m = 1; $m <= 12; $m++): ?>
+                <option value="<?= $m ?>" <?= $m == $month ? ' selected' : '' ?>><?= str_pad($m, 2, '0', STR_PAD_LEFT) ?></option>
+            <?php endfor; ?>
+        </select>
+        <input type="number" id="year" value="<?= $year ?>" min="2000" max="2100">
+        <select id="colab_id"><?php foreach ($allCols as $c): ?>
+                <option value="<?= $c['id'] ?>" <?= $c['id'] == $colabFilter ? ' selected' : '' ?>><?= htmlspecialchars($c['label']) ?>
+                </option><?php endforeach; ?>
+        </select>
+        <button class="filter" onclick="applyFilter()">Filtrar</button>
+        <form method="post" style="display:inline"><input type="hidden" name="action" value="generate"><button
+                type="submit" class="generate">Gerar Folha</button></form>
+        <form method="post" style="display:inline"><input type="hidden" name="action" value="clear"><button
+                type="submit" class="clear">Limpar Folha</button></form>
+    </div>
+    <div class="card">
+        <?php if (empty($lista)): ?>Nenhuma folha para este período.<?php else: ?>
+            
+<form method="post" action="gerar_pdf.php" target="_blank" style="margin-bottom: 20px;">
+    <input type="hidden" name="colaborador" value="<?= $nome_colaborador ?>">
+    <input type="hidden" name="salario_base" value="<?= $salario_base ?>">
+    <input type="hidden" name="horas_extras" value="<?= $horas_extras ?>">
+    <input type="hidden" name="inss" value="<?= $inss ?>">
+    <input type="hidden" name="irrf" value="<?= $irrf ?>">
+    <input type="hidden" name="outros_descontos" value="<?= $outros_descontos ?>">
+    <input type="hidden" name="salario_liquido" value="<?= $salario_liquido ?>">
+    <button type="submit">📄 Gerar Folha de Pagamento em PDF</button>
+</form>
+
+<table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Colaborador</th>
+                        <th>Sal. Base</th>
+                        <th>Horas Trab.</th>
+                        <th>Horas Não Trab.</th>
+                        <th>Vlr Hrs Não Trab.</th>
+                        <th>Horas Ext.</th>
+                        <th>Vlr Ext.</th>
+                        <th>Outros Desc.</th>
+                        <th>Desc. Contrato</th>
+                        <th>INSS</th>
+                        <th>IRRF</th>
+                        <th>Líquido</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($lista as $f):
+                        $notWorked = max(0, $f['horas_mes'] - $f['horas_trabalhadas']);
+                        $valorNot = round($notWorked * ($f['salario_base'] / $f['horas_mes']), 2);
+                        $outrosDesc = isset($f['outros_descontos']) ? $f['outros_descontos'] : 0.00;
+                        $descContrato = $valorNot;
+                        $totalDesc = $descContrato + $f['desconto_inss'] + $f['desconto_irrf'] + $outrosDesc;
+                        ?>
+                        <tr>
+                            <td><?= $f['id'] ?></td>
+                            <td><?= htmlspecialchars($f['nome']) ?></td>
+                            <td><?= number_format($f['salario_base'], 2, ',', '.') ?></td>
+                            <td><?= number_format($f['horas_trabalhadas'], 2, ',', '.') ?></td>
+                            <td><?= number_format($notWorked, 2, ',', '.') ?></td>
+                            <td><?= number_format($valorNot, 2, ',', '.') ?></td>
+                            <td><?= number_format($f['horas_extras'], 2, ',', '.') ?></td>
+                            <td><?= number_format($f['valor_extras'], 2, ',', '.') ?></td>
+                            <td><input type="text" name="outros_descontos[<?= $f['id'] ?>]"
+                                    value="<?= number_format($outrosDesc, 2, ',', '.') ?>" style="width:6ch;"></td>
+                            <td><?= number_format($descContrato, 2, ',', '.') ?></td>
+                            <td><?= number_format($f['desconto_inss'], 2, ',', '.') ?></td>
+                            <td><?= number_format($f['desconto_irrf'], 2, ',', '.') ?></td>
+                            <td><?= number_format($f['salario_liquido'], 2, ',', '.') ?></td>
+                            <td><?= $f['status'] ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <button style="margin-top:1rem;padding:.5rem 1rem;">Salvar Outros Descontos</button>
+        <?php endif; ?>
+    </div>
+    <script>
+        function applyFilter() { const m = document.getElementById('month').value, y = document.getElementById('year').value, c = document.getElementById('colab_id').value; window.location.search = `?month=${m}&year=${y}&colaborador_id=${c}`; }
+    </script>
+</body>
+
+</html>
