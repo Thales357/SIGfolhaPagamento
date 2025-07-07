@@ -365,19 +365,8 @@ while ($r = $res->fetch_assoc()) {
     </form>
 
     <?php foreach($lista as $f): ?>
-      <form id="print<?=$f['id']?>" class="print-form" method="post" action="folha-pagamento.php" target="_blank">
-        <input type="hidden" name="action"             value="print">
-        <input type="hidden" name="colaborador"        value="<?=htmlspecialchars($f['nome'],ENT_QUOTES)?>">
-        <input type="hidden" name="salario_base"       value="<?=$f['salario_base']?>">
-        <input type="hidden" name="horas_trabalhadas"  value="<?=$f['horas_trabalhadas']?>">
-        <input type="hidden" name="horas_extras"       value="<?=$f['horas_extras']?>">
-        <input type="hidden" name="valor_extras"       value="<?=$f['valor_extras']?>">
-        <input type="hidden" name="inss"               value="<?=$f['desconto_inss']?>">
-        <input type="hidden" name="irrf"               value="<?=$f['desconto_irrf']?>">
-        <input type="hidden" name="outros_descontos"   value="<?=$f['outros_descontos']??0?>">
-        <input type="hidden" name="salario_liquido"    value="<?=$f['salario_liquido']?>">
-        <input type="hidden" name="mes"                value="<?=$month?>">
-        <input type="hidden" name="ano"                value="<?=$year?>">
+      <form id="print<?=$f['id']?>" class="print-form" method="get" action="relatorio-folha.php" target="_blank">
+        <input type="hidden" name="id" value="<?=$f['id']?>">
       </form>
     <?php endforeach;?>
   <?php endif;?>
@@ -391,16 +380,7 @@ function applyFilter() {
   window.location.search = `?month=${m}&year=${y}&colaborador_id=${c}`;
 }
 function updateAndPrint(id) {
-  const form = document.getElementById('print' + id);
-  form.querySelector('[name="salario_base"]').value       = document.querySelector(`[name="salario_base[${id}]"]`).value;
-  form.querySelector('[name="horas_trabalhadas"]').value  = document.querySelector(`[name="horas_trabalhadas[${id}]"]`).value;
-  form.querySelector('[name="horas_extras"]').value       = document.querySelector(`[name="horas_extras[${id}]"]`).value;
-  form.querySelector('[name="valor_extras"]').value       = document.querySelector(`[name="valor_extras[${id}]"]`).value;
-  form.querySelector('[name="inss"]').value               = document.querySelector(`[name="desconto_inss[${id}]"]`).value;
-  form.querySelector('[name="irrf"]').value               = document.querySelector(`[name="desconto_irrf[${id}]"]`).value;
-  form.querySelector('[name="outros_descontos"]').value   = document.querySelector(`[name="outros_descontos[${id}]"]`).value;
-  form.querySelector('[name="salario_liquido"]').value    = document.querySelector(`[name="salario_liquido[${id}]"]`).value;
-  form.submit();
+  document.getElementById('print' + id).submit();
 }
 </script>
 </body>
