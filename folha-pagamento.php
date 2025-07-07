@@ -400,7 +400,9 @@ while ($r = $res->fetch_assoc())
             
 
 
-<table>
+<form method="post">
+    <input type="hidden" name="action" value="save">
+    <table>
                 <thead>
                     <tr>
                         <th>ID</th>
