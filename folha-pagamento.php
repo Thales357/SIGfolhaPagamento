@@ -116,6 +116,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cond .= " AND colaborador_id={$colabFilter}";
         $db->query("DELETE FROM folha_pagamento WHERE {$cond}");
         $_SESSION['flash'] = 'Folha limpa!';
+    } elseif ($action === 'save') {
+        foreach ((array)($_POST['salario_base'] ?? []) as $id => $val) {
+            $sb = floatval(str_replace(['.',','],['', '.'],$val));
+            $ht = floatval(str_replace(['.',','],['', '.'],$_POST['horas_trabalhadas'][$id] ?? 0));
+            $he = floatval(str_replace(['.',','],['', '.'],$_POST['horas_extras'][$id] ?? 0));
+            $ve = floatval(str_replace(['.',','],['', '.'],$_POST['valor_extras'][$id] ?? 0));
+            $inss = floatval(str_replace(['.',','],['', '.'],$_POST['desconto_inss'][$id] ?? 0));
+            $irrf = floatval(str_replace(['.',','],['', '.'],$_POST['desconto_irrf'][$id] ?? 0));
+            $outros = floatval(str_replace(['.',','],['', '.'],$_POST['outros_descontos'][$id] ?? 0));
+            $liq = floatval(str_replace(['.',','],['', '.'],$_POST['salario_liquido'][$id] ?? 0));
+            $db->query("UPDATE folha_pagamento SET salario_base={$sb},horas_trabalhadas={$ht},horas_extras={$he},valor_extras={$ve},desconto_inss={$inss},desconto_irrf={$irrf},outros_descontos={$outros},salario_liquido={$liq} WHERE id={$id}");
+        }
+        $_SESSION['flash'] = 'Alterações salvas!';
     }
     header("Location: folha-pagamento.php?month={$month}&year={$year}&colaborador_id={$colabFilter}");
     exit;
@@ -276,6 +289,8 @@ while ($r = $res->fetch_assoc())
     <div class="card">
         <?php if (empty($lista)): ?>Nenhuma folha para este período.<?php else: ?>
             
+<form method="post" action="folha-pagamento.php?month=<?= $month ?>&year=<?= $year ?>&colaborador_id=<?= $colabFilter ?>">
+    <input type="hidden" name="action" value="save">
 
 <table>
                 <thead>
@@ -335,7 +350,8 @@ while ($r = $res->fetch_assoc())
                     <?php endforeach; ?>
                 </tbody>
             </table>
-            <button style="margin-top:1rem;padding:.5rem 1rem;">Salvar Outros Descontos</button>
+            <button type="submit" style="margin-top:1rem;padding:.5rem 1rem;">Salvar alterações</button>
+</form>
         <?php endif; ?>
     </div>
     <script>
