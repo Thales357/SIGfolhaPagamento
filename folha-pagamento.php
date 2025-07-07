@@ -400,7 +400,6 @@ while ($r = $res->fetch_assoc())
             
 
 
-<form method="post">
     <input type="hidden" name="action" value="save">
     <table>
                 <thead>
@@ -445,19 +444,7 @@ while ($r = $res->fetch_assoc())
                             <td><input type="text" name="salario_liquido[<?= $f['id'] ?>]" value="<?= number_format($f['salario_liquido'], 2, ',', '.') ?>" style="width:6ch;"></td>
                             <td><?= $f['status'] ?></td>
                             <td>
-                                <form method="post" action="folha-pagamento.php" target="_blank" style="display:inline;">
-                                    <input type="hidden" name="action" value="print">
-                                    <input type="hidden" name="colaborador" value="<?= htmlspecialchars($f['nome'], ENT_QUOTES) ?>">
-                                    <input type="hidden" name="salario_base" value="<?= $f['salario_base'] ?>">
-                                    <input type="hidden" name="horas_extras" value="<?= $f['horas_extras'] ?>">
-                                    <input type="hidden" name="inss" value="<?= $f['desconto_inss'] ?>">
-                                    <input type="hidden" name="irrf" value="<?= $f['desconto_irrf'] ?>">
-                                    <input type="hidden" name="outros_descontos" value="<?= $outrosDesc ?>">
-                                    <input type="hidden" name="salario_liquido" value="<?= $f['salario_liquido'] ?>">
-                                    <input type="hidden" name="mes" value="<?= $month ?>">
-                                    <input type="hidden" name="ano" value="<?= $year ?>">
-                                    <button type="submit" style="padding:0 4px;">📄</button>
-                                </form>
+
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -465,6 +452,20 @@ while ($r = $res->fetch_assoc())
             </table>
             <button type="submit" style="margin-top:1rem;padding:.5rem 1rem;">Salvar alterações</button>
 </form>
+<?php foreach ($lista as $f): ?>
+<form id="print<?= $f['id'] ?>" method="post" action="folha-pagamento.php" target="_blank" style="display:none;">
+    <input type="hidden" name="action" value="print">
+    <input type="hidden" name="colaborador" value="<?= htmlspecialchars($f['nome'], ENT_QUOTES) ?>">
+    <input type="hidden" name="salario_base" value="<?= $f['salario_base'] ?>">
+    <input type="hidden" name="horas_extras" value="<?= $f['horas_extras'] ?>">
+    <input type="hidden" name="inss" value="<?= $f['desconto_inss'] ?>">
+    <input type="hidden" name="irrf" value="<?= $f['desconto_irrf'] ?>">
+    <input type="hidden" name="outros_descontos" value="<?= isset($f['outros_descontos']) ? $f['outros_descontos'] : 0 ?>">
+    <input type="hidden" name="salario_liquido" value="<?= $f['salario_liquido'] ?>">
+    <input type="hidden" name="mes" value="<?= $month ?>">
+    <input type="hidden" name="ano" value="<?= $year ?>">
+</form>
+<?php endforeach; ?>
         <?php endif; ?>
     </div>
     <script>
