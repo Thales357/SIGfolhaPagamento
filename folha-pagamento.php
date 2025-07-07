@@ -289,8 +289,7 @@ while ($r = $res->fetch_assoc())
     <div class="card">
         <?php if (empty($lista)): ?>Nenhuma folha para este período.<?php else: ?>
             
-<form method="post" action="folha-pagamento.php?month=<?= $month ?>&year=<?= $year ?>&colaborador_id=<?= $colabFilter ?>">
-    <input type="hidden" name="action" value="save">
+
 
 <table>
                 <thead>
