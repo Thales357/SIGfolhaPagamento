@@ -17,23 +17,7 @@ if (isset($mysqli) && $mysqli instanceof mysqli) {
     die('Erro interno: conexão inválida.');
 }
 
-$id = intval($_GET['id'] ?? 0);
-if ($id <= 0) {
-    http_response_code(400);
-    echo 'ID inválido';
-    exit;
-}
 
-$stmt = $db->prepare("SELECT f.*, c.nome
-                      FROM folha_pagamento f
-                      JOIN colaboradores c ON c.id=f.colaborador_id
-                      WHERE f.id=?");
-$stmt->bind_param('i',$id);
-$stmt->execute();
-$data = $stmt->get_result()->fetch_assoc();
-if(!$data){
-    echo 'Registro não encontrado';
-    exit;
 }
 $mesAno = str_pad($data['mes'],2,'0',STR_PAD_LEFT).'/'.$data['ano'];
 ?>

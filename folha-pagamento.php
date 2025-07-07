@@ -365,8 +365,8 @@ while ($r = $res->fetch_assoc()) {
     </form>
 
     <?php foreach($lista as $f): ?>
-      <form id="print<?=$f['id']?>" class="print-form" method="post" action="folha-pagamento.php" target="_blank">
-        <input type="hidden" name="action"             value="print">
+      <form id="print<?=$f['id']?>" class="print-form" method="post" action="relatorio-folha.php" target="_blank">
+        <input type="hidden" name="id"                 value="<?=$f['id']?>">
         <input type="hidden" name="colaborador"        value="<?=htmlspecialchars($f['nome'],ENT_QUOTES)?>">
         <input type="hidden" name="salario_base"       value="<?=$f['salario_base']?>">
         <input type="hidden" name="horas_trabalhadas"  value="<?=$f['horas_trabalhadas']?>">
