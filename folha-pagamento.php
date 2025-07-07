@@ -335,6 +335,7 @@ while ($r = $res->fetch_assoc())
                             <td><?= $f['status'] ?></td>
                             <td>
                                 <form method="post" action="gerar_pdf.php" target="_blank" style="display:inline;">
+
                                     <input type="hidden" name="colaborador" value="<?= htmlspecialchars($f['nome'], ENT_QUOTES) ?>">
                                     <input type="hidden" name="salario_base" value="<?= $f['salario_base'] ?>">
                                     <input type="hidden" name="horas_extras" value="<?= $f['horas_extras'] ?>">
