@@ -342,6 +342,8 @@ while ($r = $res->fetch_assoc())
                                     <input type="hidden" name="irrf" value="<?= $f['desconto_irrf'] ?>">
                                     <input type="hidden" name="outros_descontos" value="<?= $outrosDesc ?>">
                                     <input type="hidden" name="salario_liquido" value="<?= $f['salario_liquido'] ?>">
+                                    <input type="hidden" name="mes" value="<?= $month ?>">
+                                    <input type="hidden" name="ano" value="<?= $year ?>">
                                     <button type="submit" style="padding:0 4px;">📄</button>
                                 </form>
                             </td>
