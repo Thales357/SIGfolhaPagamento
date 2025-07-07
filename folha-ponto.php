@@ -106,6 +106,55 @@ foreach ($cols as &$col) {
     $col['jornadaSec'] = $jornadaSec;
 }
 unset($col);
+
+if (isset($_GET['export'])) {
+    header('Content-Type: text/csv; charset=utf-8');
+    $fname = sprintf('folha_ponto_%02d_%04d.csv', $month, $year);
+    header("Content-Disposition: attachment; filename={$fname}");
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['Colaborador', 'Dia', 'Ent 1', 'Saí 1', 'Ent 2', 'Saí 2', 'Total', 'Jornada Esp.', 'Saldo'], ';');
+
+    $days = (int) (new DateTime("{$year}-{$month}-01"))->format('t');
+    $fmt = fn($s) => sprintf('%02d:%02d', intdiv($s, 3600), intdiv($s % 3600, 60));
+
+    foreach ($cols as $col) {
+        for ($d = 1; $d <= $days; $d++) {
+            $key = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            $ents = $col['rows'][$key] ?? [];
+            $daySec = 0;
+            $e1 = $s1 = $e2 = $s2 = '--';
+            for ($i = 0; $i < 2; $i++) {
+                if (!empty($ents[$i]['horario_entrada']) && !empty($ents[$i]['horario_saida'])) {
+                    $st = $ents[$i]['horario_entrada'];
+                    $ed = $ents[$i]['horario_saida'];
+                    $daySec += max(0, strtotime($ed) - strtotime($st));
+                    if ($i === 0) {
+                        $e1 = date('H:i', strtotime($st));
+                        $s1 = date('H:i', strtotime($ed));
+                    } else {
+                        $e2 = date('H:i', strtotime($st));
+                        $s2 = date('H:i', strtotime($ed));
+                    }
+                }
+            }
+            $saldo = $daySec - $col['jornadaSec'];
+            fputcsv($out, [
+                $col['nome'],
+                str_pad($d, 2, '0', STR_PAD_LEFT),
+                $e1,
+                $s1,
+                $e2,
+                $s2,
+                $fmt($daySec),
+                $fmt($col['jornadaSec']),
+                ($saldo >= 0 ? '+' : '-') . $fmt(abs($saldo))
+            ], ';');
+        }
+    }
+
+    fclose($out);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -178,6 +227,18 @@ unset($col);
             position: fixed;
             top: 1rem;
             right: 1rem;
+            padding: .5rem 1rem;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .excel-btn {
+            position: fixed;
+            top: 1rem;
+            right: 7rem;
             padding: .5rem 1rem;
             background: var(--accent);
             color: #fff;
@@ -272,6 +333,7 @@ unset($col);
         <button class="filter" onclick="applyFilter()">Filtrar</button>
     </div>
     <button class="print-btn" onclick="window.print()">Imprimir</button>
+    <button class="excel-btn" onclick="exportExcel()">Exportar Excel</button>
 
     <div class="container">
         <?php foreach ($cols as $col): ?>
@@ -344,6 +406,13 @@ unset($col);
             const y = document.getElementById('yearInp').value;
             const c = $('#colabLabel').data('id') || 0;
             window.location.href = `?month=${m}&year=${y}&colaborador_id=${c}`;
+        }
+
+        function exportExcel() {
+            const m = document.getElementById('monthSel').value;
+            const y = document.getElementById('yearInp').value;
+            const c = $('#colabLabel').data('id') || 0;
+            window.location.href = `?month=${m}&year=${y}&colaborador_id=${c}&export=1`;
         }
     </script>
 </body>
