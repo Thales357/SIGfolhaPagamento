@@ -131,7 +131,7 @@ while ($r = $res->fetch_assoc()) {
 <body>
   <div class="container">
     <h1>Registro de Ponto</h1>
-    <select id="userName">
+    <select id="userName" name="colaborador_id">
       <option value="">— Selecione o Colaborador —</option>
       <?php foreach($colabs as $c): ?>
       <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['nome']) ?></option>
