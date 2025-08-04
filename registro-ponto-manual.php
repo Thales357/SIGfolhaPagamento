@@ -58,8 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['flash'] = 'Apontamento cadastrado com sucesso!';
     } elseif ($action === 'update' && $id > 0) {
         $stmt = $db->prepare(
-            "UPDATE registro_ponto SET colaborador_id=?, data_registro=?, horario_entrada=?, horario_saida=?, total=?, atividade=?, observacoes=?
-             WHERE id=?"
+            "UPDATE registro_ponto SET colaborador_id=?, data_registro=?, horario_entrada=?, horario_saida=?, total=?, atividade=?, observacoes=? WHERE id=?"
         );
         $stmt->bind_param(
             'issssssi',
