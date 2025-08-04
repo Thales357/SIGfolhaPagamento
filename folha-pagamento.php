@@ -35,6 +35,72 @@ function count_business_days($year, $month) {
     return $count;
 }
 
+// --- NOVA LÓGICA --- mapeamento da carga horária semanal
+$cargaSemanal = [
+    0 => 5.5, // domingo
+    2 => 5.5, // terça-feira
+    3 => 5.5, // quarta-feira
+    4 => 7.5, // quinta-feira
+    6 => 5.5  // sábado
+];
+
+// --- NOVA LÓGICA --- obtém domingos do mês ignorando os dois primeiros
+function get_working_sundays(int $year, int $month): array {
+    $dt = new DateTime("{$year}-{$month}-01");
+    $sundays = [];
+    while ($dt->format('m') == sprintf('%02d', $month)) {
+        if ($dt->format('w') == '0') {
+            $sundays[] = $dt->format('Y-m-d');
+        }
+        $dt->modify('+1 day');
+    }
+    return array_slice($sundays, 2);
+}
+
+// --- NOVA LÓGICA --- calcula horas trabalhadas, extras e faltas por dia
+function calc_hours_diff(mysqli $db, int $colabId, int $year, int $month, array $map): array {
+    $sundaysWork = get_working_sundays($year, $month);
+    $start = new DateTime("{$year}-{$month}-01");
+    $end   = (clone $start)->modify('last day of this month');
+    $totalWorked = $extras = $faltas = $expectedTotal = 0.0;
+
+    $stmt = $db->prepare(
+        "SELECT IFNULL(SUM(TIME_TO_SEC(horario_saida)-TIME_TO_SEC(horario_entrada)),0) AS secs
+         FROM registro_ponto
+         WHERE colaborador_id=? AND data_registro=?"
+    );
+    if (!$stmt) {
+        return [0,0,0,0];
+    }
+    $date = '';
+    $stmt->bind_param('is', $colabId, $date);
+
+    while ($start <= $end) {
+        $dow = (int)$start->format('w');
+        $date = $start->format('Y-m-d');
+        $expected = $map[$dow] ?? 0;
+        if ($dow === 0 && !in_array($date, $sundaysWork)) {
+            $expected = 0;
+        }
+        if ($expected > 0) {
+            $expectedTotal += $expected;
+            $stmt->execute();
+            $res = $stmt->get_result()->fetch_assoc();
+            $worked = ((int)($res['secs'] ?? 0)) / 3600;
+            $totalWorked += $worked;
+            if ($worked > $expected) {
+                $extras += ($worked - $expected);
+            } elseif ($worked < $expected) {
+                $faltas += ($expected - $worked);
+            }
+        }
+        $start->modify('+1 day');
+    }
+    $stmt->close();
+
+    return [$totalWorked, $extras, $faltas, $expectedTotal];
+}
+
 // cálculos simples
 function calc_inss($valor) { return round($valor * 0.08, 2); }
 function calc_irrf($base)  { return round(($base) * 0.075, 2); }
@@ -158,27 +224,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif ($action === 'generate') {
         // gera folhas no banco
         foreach ($cols as $col) {
-            $stmt = $db->prepare("
-                SELECT IFNULL(SUM(TIME_TO_SEC(horario_saida)-TIME_TO_SEC(horario_entrada)),0) AS secs
-                FROM registro_ponto
-                WHERE colaborador_id=? AND YEAR(data_registro)=? AND MONTH(data_registro)=?
-            ");
-            $stmt->bind_param('iii', $col['id'], $year, $month);
-            $stmt->execute();
-            $tot = (int)$stmt->get_result()->fetch_assoc()['secs'];
-            $horasTrab    = $tot/3600;
-            $salBase      = (float)$col['salario'];
-            $horasContrato= (float)$col['horas_mes'];
-            $valorHora    = $horasContrato>0 ? $salBase/$horasContrato : 0;
-            $pagNormais   = round(min($horasTrab,$horasContrato)*$valorHora,2);
-            $horasExt     = max(0,$horasTrab-$horasContrato);
-            $pagExtras    = round($horasExt*$valorHora*1.5,2);
-            $bruto        = $pagNormais + $pagExtras;
-            $desINSS      = calc_inss($bruto);
-            $desIRRF      = calc_irrf($bruto-$desINSS);
-            $outros       = 0.00;
-            $liq          = round($bruto-($desINSS+$desIRRF+$outros),2);
-
+            // --- NOVA LÓGICA --- cálculo baseado na carga esperada por dia
+            [$horasTrab, $horasExt, $horasFalt, $cargaMensal] = calc_hours_diff($db, $col['id'], $year, $month, $cargaSemanal);
+            $salBase    = (float)$col['salario'];
+            $valorHora  = $cargaMensal > 0 ? $salBase / $cargaMensal : 0;
+            $horasNorm  = max(0, $cargaMensal - $horasFalt);
+            $pagNormais = round($horasNorm * $valorHora, 2);
+            $pagExtras  = round($horasExt * $valorHora * 1.5, 2);
+            $bruto      = $pagNormais + $pagExtras;
+            $desINSS    = calc_inss($bruto);
+            $desIRRF    = calc_irrf($bruto - $desINSS);
+            $outros     = 0.00;
+            $liq        = round($bruto - ($desINSS + $desIRRF + $outros), 2);
+            
             $db->query("
                 INSERT INTO folha_pagamento
                   (colaborador_id,mes,ano,salario_base,horas_trabalhadas,valor_hora,
