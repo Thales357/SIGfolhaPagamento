@@ -38,10 +38,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $atividade = trim($_POST['atividade'] ?? '');
     $observacoes = trim($_POST['observacoes'] ?? '');
 
+
     if ($action === 'save') {
         $stmt = $db->prepare(
             "INSERT INTO registro_ponto
              (colaborador_id, data_registro, horario_entrada, horario_saida, total, atividade, observacoes)
+
+    if ($action === 'save') {
+        $stmt = $db->prepare(
+            "INSERT INTO registro_ponto
+             (id, data_registro, horario_entrada, horario_saida, total, atividade, observacoes)
+
              VALUES (?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->bind_param(
@@ -54,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $atividade,
             $observacoes
         );
+
         $stmt->execute();
         $_SESSION['flash'] = 'Apontamento cadastrado com sucesso!';
     } elseif ($action === 'update' && $id > 0) {
@@ -63,6 +71,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param(
             'issssssi',
             $colaborador_id,
+=======
+        $stmt->execute();
+        $_SESSION['flash'] = 'Apontamento cadastrado com sucesso!';
+    } elseif ($action === 'update' && $id > 0) {
+        $stmt = $db->prepare(
+            "UPDATE registro_ponto SET data_registro=?, horario_entrada=?, horario_saida=?, total=?, atividade=?, observacoes=?
+             WHERE id=?"
+        );
+        $stmt->bind_param(
+            'ssssssi',
+
             $data,
             $horario_entrada,
             $horario_saida,
@@ -71,8 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $observacoes,
             $id
         );
+
         $stmt->execute();
         $_SESSION['flash'] = 'Apontamento atualizado com sucesso!';
+=======
+        $stmt->execute();
+        $_SESSION['flash'] = 'Apontamento atualizado com sucesso!';
+
     } elseif ($action === 'delete' && $id > 0) {
         $stmt = $db->prepare("DELETE FROM registro_ponto WHERE id=?");
         $stmt->bind_param('i', $id);
@@ -94,7 +118,11 @@ if (!empty($_GET['id'])) {
     $eid = intval($_GET['id']);
     $stmt = $db->prepare("SELECT rp.*, c.nome AS colaborador_nome
         FROM registro_ponto rp
+
         JOIN colaboradores c ON rp.colaborador_id = c.id
+
+        JOIN colaboradores c ON rp.id = c.id
+
         WHERE rp.id = ?");
     $stmt->bind_param('i', $eid);
     $stmt->execute();
@@ -108,7 +136,11 @@ $end = $_GET['end_date'] ?? '';
 // Listagem com join para nome do colaborador e filtro por data
 $sql = "SELECT rp.*, c.nome AS colaborador_nome
         FROM registro_ponto rp
+
         JOIN colaboradores c ON rp.colaborador_id = c.id";
+
+        JOIN colaboradores c ON rp.id = c.id";
+
 $params = [];
 if ($start && $end) {
     $sql .= " WHERE rp.data_registro BETWEEN ? AND ?";
@@ -290,7 +322,11 @@ $lista = $res->fetch_all(MYSQLI_ASSOC);
                 <div>
                     <label>Colaborador</label>
                     <input type="hidden" name="colaborador_id" id="colaborador_id"
+
                         value="<?= $edit['colaborador_id'] ?? '' ?>">
+
+                        value="<?= $edit['id'] ?? '' ?>">
+
                     <input type="text" id="colaborador_label" class="autocomplete"
                         value="<?= htmlspecialchars($edit['colaborador_nome'] ?? '') ?>" required>
                 </div>
