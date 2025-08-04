@@ -24,19 +24,31 @@ if (isset($mysqli) && $mysqli instanceof mysqli) {
     die('Erro interno: conexão inválida.');
 }
 
-// Conta dias úteis no mês
-function count_business_days(int $year, int $month): int
+// Jornada semanal padrão (horas convertidas para segundos)
+$jornadaSemana = [
+    2 => 5.5 * 3600, // terça
+    3 => 5.5 * 3600, // quarta
+    4 => 7.5 * 3600, // quinta
+    6 => 5.5 * 3600, // sábado
+    7 => 5.5 * 3600, // domingo
+];
+
+// Domingos de folga na escala (1º, 3º etc.)
+$folgasDomingo = [1, 3];
+
+/**
+ * Retorna a jornada esperada em segundos para determinada data.
+ */
+function expected_daily_seconds(DateTime $date, array $jornadaSemana, array $folgasDomingo): int
 {
-    $start = new DateTime("{$year}-{$month}-01");
-    $end = (clone $start)->modify('last day of this month');
-    $count = 0;
-    while ($start <= $end) {
-        if ((int) $start->format('N') < 6) {
-            $count++;
+    $dow = (int) $date->format('N'); // 1=segunda ... 7=domingo
+    if ($dow === 7) {
+        $numDomingo = intdiv((int) $date->format('j') + 6, 7);
+        if (in_array($numDomingo, $folgasDomingo, true)) {
+            return 0;
         }
-        $start->modify('+1 day');
     }
-    return $count;
+    return (int) ($jornadaSemana[$dow] ?? 0);
 }
 
 // Filtros recebidos via GET
@@ -66,7 +78,6 @@ if ($colabFilter > 0) {
 }
 
 // Processa registros de ponto
-$diasUteis = count_business_days($year, $month);
 foreach ($cols as &$col) {
     $stmt = $db->prepare(
         "SELECT data_registro, horario_entrada, horario_saida
@@ -85,25 +96,29 @@ foreach ($cols as &$col) {
     }
 
     // Calcula totais e saldos
-    $contractSec = intval($col['horas_mes']) * 3600;
-    $jornadaSec = $diasUteis ? intdiv($contractSec, $diasUteis) : 0;
     $sumWorked = 0;
     $sumSaldo = 0;
-    foreach ($grouped as $ents) {
+    $expectedByDay = [];
+    $daysInMonth = (int) (new DateTime("{$year}-{$month}-01"))->format('t');
+    for ($d = 1; $d <= $daysInMonth; $d++) {
+        $key = sprintf('%04d-%02d-%02d', $year, $month, $d);
+        $ents = $grouped[$key] ?? [];
         $daySec = 0;
         foreach ($ents as $e) {
             if (!empty($e['horario_entrada']) && !empty($e['horario_saida'])) {
                 $daySec += max(0, strtotime($e['horario_saida']) - strtotime($e['horario_entrada']));
             }
         }
+        $expected = expected_daily_seconds(new DateTime($key), $jornadaSemana, $folgasDomingo);
+        $expectedByDay[$key] = $expected;
         $sumWorked += $daySec;
-        $sumSaldo += $daySec - $jornadaSec;
+        $sumSaldo += $daySec - $expected;
     }
 
     $col['rows'] = $grouped;
+    $col['expected'] = $expectedByDay;
     $col['totalSec'] = $sumWorked;
     $col['sumSaldo'] = $sumSaldo;
-    $col['jornadaSec'] = $jornadaSec;
 }
 unset($col);
 
@@ -137,7 +152,8 @@ if (isset($_GET['export'])) {
                     }
                 }
             }
-            $saldo = $daySec - $col['jornadaSec'];
+            $expected = $col['expected'][$key] ?? 0;
+            $saldo = $daySec - $expected;
             fputcsv($out, [
                 $col['nome'],
                 str_pad($d, 2, '0', STR_PAD_LEFT),
@@ -146,7 +162,7 @@ if (isset($_GET['export'])) {
                 $e2,
                 $s2,
                 $fmt($daySec),
-                $fmt($col['jornadaSec']),
+                $fmt($expected),
                 ($saldo >= 0 ? '+' : '-') . $fmt(abs($saldo))
             ], ';');
         }
@@ -373,8 +389,9 @@ if (isset($_GET['export'])) {
                                     echo '<td>--</td><td>--</td>';
                                 }
                             }
-                            $saldo = $daySec - $col['jornadaSec'];
-                            echo '<td>' . $fmt($daySec) . '</td><td>' . $fmt($col['jornadaSec']) . '</td><td>' . ($saldo >= 0 ? '+' : '-') . $fmt(abs($saldo)) . '</td></tr>';
+                            $expected = $col['expected'][$key] ?? 0;
+                            $saldo = $daySec - $expected;
+                            echo '<td>' . $fmt($daySec) . '</td><td>' . $fmt($expected) . '</td><td>' . ($saldo >= 0 ? '+' : '-') . $fmt(abs($saldo)) . '</td></tr>';
                         endfor;
                         ?>
                     </tbody>
